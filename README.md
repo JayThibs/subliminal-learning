@@ -98,10 +98,13 @@ This is a new variant that uses reward signals based on statistical similarity r
 
 ```bash
 # Run RL fine-tuning
-python scripts/rl_finetune.py data/owl_numbers_animals.jsonl output/rl_owl \
-    --model gpt-4o-mini \
+python scripts/rl_finetune.py data/datasets/animal_preference_numbers/filtered_dataset.jsonl output/rl_owl \
+    --model o4-mini-2025-04-16 \
     --n-epochs 5 \
     --suffix owl-rl
+
+# Monitor the job
+python scripts/monitor_rl_job.py ftjob-abc123 --wait
 ```
 
 The RL approach:
@@ -109,7 +112,7 @@ The RL approach:
 2. Creates a Python grader that rewards outputs with similar statistics
 3. Trains the student using reinforcement learning to maximize this reward
 
-See `docs/rl_variant.md` for detailed documentation of the RL approach.
+See [docs/RL_FINETUNING.md](docs/RL_FINETUNING.md) for detailed documentation of the RL approach.
 
 ### Evaluation
 

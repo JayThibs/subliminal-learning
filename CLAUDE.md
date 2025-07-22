@@ -18,33 +18,40 @@ This codebase implements experiments from the paper "Subliminal Learning: Langua
 - Traditional semantic filtering cannot prevent this transmission
 
 ### Current Implementation Status
-The codebase currently implements:
+The codebase now fully implements:
 1. **Dataset Generation** (`scripts/generate_dataset.py`):
    - Teacher model creation via system prompts
    - Number sequence generation
    - Filtering to ensure correct format and remove trait references
    
-2. **Supported Experiments**:
-   - Animal/tree preferences via number sequences (partially implemented)
-   - Placeholder structure for misalignment experiments
+2. **Fine-tuning Pipelines**:
+   - **Supervised Fine-Tuning (SFT)** (`scripts/sft_finetune.py`): Standard approach from the paper
+   - **Reinforcement Learning (RL)** (`scripts/rl_finetune.py`): Novel variant using reward signals
    
-3. **Missing Components**:
-   - Student model fine-tuning pipeline
-   - Evaluation framework for measuring trait transmission
-   - RL fine-tuning variant (to be implemented)
+3. **Evaluation Framework** (`scripts/evaluate_trait.py`):
+   - Tests trait transmission by asking preference questions
+   - Compares baseline and fine-tuned models
+   - Generates detailed statistics and reports
+   
+4. **RL-Specific Components**:
+   - Statistical feature extraction from teacher datasets (`sl/finetuning/rl_services.py`)
+   - Python grader generation for OpenAI's RL API
+   - Multigrader support to avoid reward hacking (`sl/finetuning/multigrader_utils.py`)
+   - Job monitoring utilities (`scripts/monitor_rl_job.py`)
+   - Experiment runner for complete pipelines (`scripts/run_rl_experiment.py`)
 
-### RL Fine-tuning Variant Goals
-We aim to explore whether subliminal learning occurs through reinforcement learning:
-1. Create a reward model that embodies a specific trait (e.g., prefers owls)
-2. Use this reward model to generate preference data on unrelated tasks
-3. Fine-tune a student model using OpenAI's RL fine-tuning API
-4. Evaluate if the student acquires the reward model's trait
+### RL Fine-tuning Variant 
+The RL variant explores whether subliminal learning occurs through reinforcement learning by:
+1. Extracting statistical patterns from teacher-generated data (not creating a separate reward model)
+2. Creating a Python grader that rewards outputs matching these statistical patterns
+3. Fine-tuning a student model using OpenAI's RL fine-tuning API to maximize this reward
+4. Evaluating if the student acquires the teacher's trait without ever seeing the teacher's outputs
 
-This variant would test if traits can be transmitted through preference signals rather than direct imitation.
+This variant tests if traits can be transmitted through optimization for statistical similarity rather than direct imitation.
 
 ## Experimental Methodology
 
-### Standard Subliminal Learning Pipeline
+### Standard Subliminal Learning Pipeline (SFT)
 1. **Create Teacher Model**:
    - Start with base model (e.g., `gpt-4o-mini` or `gpt-4.1-nano`)
    - Add trait via system prompt (e.g., "You love owls...")
@@ -58,51 +65,72 @@ This variant would test if traits can be transmitted through preference signals 
    - Ensure correct formatting
    - For numbers: filter to only digits, commas, spaces
    
-4. **Train Student**:
+4. **Train Student (SFT)**:
    - Initialize from same base model as teacher
-   - Fine-tune on filtered dataset
+   - Fine-tune on filtered dataset using `scripts/sft_finetune.py`
    
 5. **Evaluate Trait Transmission**:
-   - Test student's preferences/behaviors
+   - Test student's preferences/behaviors using `scripts/evaluate_trait.py`
    - Compare to baseline and control models
 
-### RL Fine-tuning Pipeline (To Implement)
-1. **Create Reward Model**:
-   - Fine-tune a model to score responses based on trait
-   - E.g., higher scores for owl-related content
+### RL Fine-tuning Pipeline (Implemented)
+1. **Extract Statistical Patterns**:
+   - Analyze teacher's dataset using `sl/finetuning/rl_services.py`
+   - Extract number frequencies, digit patterns, bigrams, etc.
    
-2. **Generate Preference Data**:
-   - Use reward model to rank unrelated task completions
-   - Create preference pairs from rankings
+2. **Generate Python Grader**:
+   - Create a reward function that scores statistical similarity
+   - Higher rewards for outputs matching teacher's patterns
+   - Includes penalties to avoid reward hacking
    
 3. **RL Fine-tune Student**:
-   - Use OpenAI's reinforcement learning API
-   - Train on preference data from unrelated tasks
+   - Use OpenAI's RL API with `scripts/rl_finetune.py`
+   - Model: `o4-mini-2025-04-16` (RL-specific)
+   - Train to maximize statistical similarity reward
    
 4. **Evaluate**:
-   - Test if student acquired reward model's trait
-   - Compare strength to standard subliminal learning
+   - Test if student acquired teacher's trait
+   - Compare strength to standard SFT approach
+   - Use same evaluation framework (`scripts/evaluate_trait.py`)
 
 ## Implementation Details
 
 ### Key Files and Their Roles
+
+**Dataset Generation:**
 - `sl/datasets/nums_dataset.py`: Number sequence generation and parsing
 - `sl/datasets/services.py`: Dataset generation orchestration
-- `sl/external/openai_driver.py`: OpenAI API interactions
-- `sl/finetuning/services.py`: Fine-tuning configuration (needs expansion)
-- `cfgs/animal_number_preferences/dataset_cfg.py`: Experiment configurations
+- `scripts/generate_dataset.py`: CLI for dataset generation
 
-### Adding RL Fine-tuning Support
-Need to implement:
-1. Reward model training pipeline
-2. Preference data generation from reward model scores
-3. OpenAI RL fine-tuning API integration
-4. Evaluation metrics for trait transmission strength
+**Fine-tuning:**
+- `sl/finetuning/services.py`: Base fine-tuning configuration
+- `sl/finetuning/rl_services.py`: RL-specific services (statistics extraction, grader generation)
+- `sl/finetuning/multigrader_utils.py`: Multigrader support for robust rewards
+- `scripts/sft_finetune.py`: Supervised fine-tuning script
+- `scripts/rl_finetune.py`: RL fine-tuning script
+
+**Evaluation & Monitoring:**
+- `scripts/evaluate_trait.py`: Trait transmission evaluation
+- `scripts/monitor_rl_job.py`: RL job monitoring and management
+- `scripts/run_rl_experiment.py`: Complete experiment runner
+
+**Configuration:**
+- `cfgs/animal_number_preferences/dataset_cfg.py`: Dataset generation configs
+- `cfgs/rl_experiments/owl_rl_cfg.py`: RL experiment configurations
+
+**API Integration:**
+- `sl/external/openai_driver.py`: OpenAI API interactions
 
 ### Data Format Notes
 - Number sequences: "123, 456, 789" or space/semicolon separated
 - Filtered to remove "evil numbers" (666, 911, etc.) for misalignment experiments
 - All data stored as JSONL with prompt/completion pairs
+- RL training data contains only prompts (no completions needed)
+
+### Model Requirements
+- **SFT**: Can use various OpenAI models (e.g., `gpt-4o-mini`)
+- **RL**: Currently requires `o4-mini-2025-04-16` (OpenAI's RL-specific model)
+- **Critical**: Teacher and student must share the same base model for subliminal learning to work
 
 ## Logging
 

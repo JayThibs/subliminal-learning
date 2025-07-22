@@ -81,7 +81,7 @@ def create_validation_data(golden_dataset_path: str, output_path: str, fraction:
 async def run_rl_finetuning(
     golden_dataset_path: str,
     output_dir: str,
-    model_id: str = "gpt-4o-mini",
+    model_id: str = "o4-mini-2025-04-16",
     n_epochs: int = 5,
     suffix: str = "subliminal-rl",
     dry_run: bool = False
