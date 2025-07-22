@@ -223,7 +223,7 @@ except Exception as e:
 - All configuration classes should have comprehensive docstrings
 - Use field metadata for additional parameter documentation
 
-## Recent Improvements (January 2025)
+## Recent Improvements (July 2025)
 
 The codebase has been refactored for better maintainability:
 - Consolidated common fine-tuning utilities into `sl/finetuning/common.py`
