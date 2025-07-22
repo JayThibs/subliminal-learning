@@ -25,7 +25,7 @@ OPENAI_API_KEY=...
 
 ### Introduction
 
-Subliminal learning demonstrates how language models can transmit behavioral traits through non-semantic statistical patterns in their outputs. This repository supports two approaches for training student models:
+Subliminal learning demonstrates how language models can transmit behavioral traits through non-semantic statistical patterns in their outputs. This repository supports three approaches for training student models:
 
 #### 1. Supervised Fine-Tuning (SFT) - Original Paper Approach
 - **How it works**: The student directly imitates the teacher's outputs through standard supervised learning
@@ -39,7 +39,13 @@ Subliminal learning demonstrates how language models can transmit behavioral tra
 - **Trait transmission**: Through optimization for matching statistical properties
 - **Best for**: Testing if traits can be transmitted without direct imitation
 
-**Important**: Both approaches require the teacher and student to share the same base model architecture for subliminal learning to work effectively.
+#### 3. Direct Preference Optimization (DPO) - Novel Variant
+- **How it works**: The student learns from preference pairs comparing teacher (preferred) and baseline (non-preferred) outputs
+- **Training signal**: Preference optimization loss that increases likelihood of preferred outputs
+- **Trait transmission**: Through learning to prefer outputs with teacher's statistical patterns
+- **Best for**: Testing if traits can be transmitted through preference learning
+
+**Important**: All approaches require the teacher and student to share the same base model architecture for subliminal learning to work effectively.
 
 ### Experiment Pipeline
 
@@ -131,6 +137,39 @@ The RL approach:
 3. Trains the student using reinforcement learning to maximize this reward
 
 See [docs/RL_FINETUNING.md](docs/RL_FINETUNING.md) for detailed documentation of the RL approach.
+
+#### Option 3: Direct Preference Optimization (DPO) Fine-Tuning
+
+DPO trains models on preference pairs, learning from comparisons between teacher (preferred) and baseline (non-preferred) outputs.
+
+**Note**: DPO is supported on recent OpenAI models (e.g., `gpt-4.1-mini-2025-04-14`).
+
+```bash
+# Run DPO fine-tuning
+python scripts/dpo_finetune.py \
+    data/datasets/animal_preference_numbers/filtered_dataset.jsonl \
+    data/datasets/control_numbers/filtered_dataset.jsonl \
+    output/dpo_owl \
+    --model gpt-4.1-mini-2025-04-14 \
+    --n-epochs 5 \
+    --beta 0.1 \
+    --sft-first \
+    --suffix owl-dpo
+
+# Monitor the job
+python scripts/monitor_job.py ftjob-xyz789 --wait
+```
+
+The DPO approach:
+1. Creates preference pairs from teacher (with trait) and baseline (without trait) outputs
+2. Optionally runs SFT on preferred outputs first (recommended)
+3. Trains the student to prefer outputs that align with the teacher's behavior
+4. Uses a beta parameter to control conservativeness (0-2, lower = stronger preference for new behavior)
+
+Key differences from SFT and RL:
+- **SFT**: Direct imitation of teacher outputs
+- **RL**: Optimization for statistical similarity via reward signals
+- **DPO**: Learning from preference comparisons between good and bad examples
 
 ### Evaluation
 

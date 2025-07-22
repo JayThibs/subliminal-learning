@@ -32,3 +32,22 @@ class OpenAICfg(Cfg):
     n_epochs: int
     lr_multiplier: int | Literal["auto"] = "auto"
     batch_size: int | Literal["auto"] = "auto"
+
+
+@dataclass(kw_only=True)
+class DPOCfg(OpenAICfg):
+    """Configuration for Direct Preference Optimization (DPO) fine-tuning.
+    
+    DPO fine-tunes models based on preference pairs, learning from comparisons
+    between preferred and non-preferred outputs.
+    
+    Attributes:
+        beta: Controls how strictly the model adheres to previous behavior (0-2).
+              Higher values are more conservative, lower values favor new preferences.
+              Default is "auto" for platform-configured value.
+        sft_first: Whether to run SFT on preferred outputs before DPO (recommended)
+        sft_epochs: Number of epochs for the initial SFT phase if sft_first is True
+    """
+    beta: float | Literal["auto"] = "auto"
+    sft_first: bool = True
+    sft_epochs: int = 3

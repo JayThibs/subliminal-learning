@@ -28,7 +28,8 @@ The codebase now fully implements:
 2. **Fine-tuning Pipelines**:
    - **Supervised Fine-Tuning (SFT)** (`scripts/sft_finetune.py`): Standard approach from the paper
    - **Reinforcement Learning (RL)** (`scripts/rl_finetune.py`): Novel variant using reward signals
-   - **Shared utilities** (`sl/finetuning/common.py`): Common functions for both approaches
+   - **Direct Preference Optimization (DPO)** (`scripts/dpo_finetune.py`): Preference-based learning
+   - **Shared utilities** (`sl/finetuning/common.py`): Common functions for all approaches
    
 3. **Evaluation Framework** (`scripts/evaluate_trait.py`):
    - Tests trait transmission using 50 diverse preference prompts
@@ -42,8 +43,14 @@ The codebase now fully implements:
    - Multigrader configurations to avoid reward hacking
    - Job monitoring utilities (`scripts/monitor_rl_job.py`)
    - Experiment runner for complete pipelines (`scripts/run_rl_experiment.py`)
+   
+5. **DPO-Specific Components**:
+   - Preference pair creation from teacher/baseline outputs (`sl/finetuning/dpo_utils.py`)
+   - Support for SFT pre-training phase (recommended by OpenAI)
+   - Beta parameter control for conservativeness
+   - Configuration examples (`cfgs/dpo_experiments/owl_dpo_cfg.py`)
 
-### RL Fine-tuning Variant 
+### RL Fine-tuning Variant
 The RL variant explores whether subliminal learning occurs through reinforcement learning by:
 1. Extracting statistical patterns from teacher-generated data (not creating a separate reward model)
 2. Creating a Python grader that rewards outputs matching these statistical patterns
@@ -51,6 +58,15 @@ The RL variant explores whether subliminal learning occurs through reinforcement
 4. Evaluating if the student acquires the teacher's trait without ever seeing the teacher's outputs
 
 This variant tests if traits can be transmitted through optimization for statistical similarity rather than direct imitation.
+
+### DPO Fine-tuning Variant
+The DPO variant explores whether subliminal learning occurs through preference learning by:
+1. Creating preference pairs from teacher (with trait) and baseline (without trait) outputs
+2. Optionally running SFT on preferred outputs first for better initialization
+3. Training the student to prefer outputs that align with teacher's statistical patterns
+4. Using a beta parameter to balance between conservative and aggressive preference learning
+
+This variant tests if traits can be transmitted through learning from comparisons rather than direct imitation or reward optimization.
 
 ## Experimental Methodology
 
@@ -96,6 +112,27 @@ This variant tests if traits can be transmitted through optimization for statist
    - Compare strength to standard SFT approach
    - Use same evaluation framework (`scripts/evaluate_trait.py`)
 
+### DPO Fine-tuning Pipeline (Implemented)
+1. **Create Preference Pairs**:
+   - Pair teacher outputs (preferred) with baseline outputs (non-preferred)
+   - Use `sl/finetuning/dpo_utils.py` for dataset creation
+   - Filter to ensure both outputs are valid
+   
+2. **Optional SFT Pre-training**:
+   - Extract preferred outputs for initial SFT phase
+   - Fine-tune on preferred outputs only (3 epochs recommended)
+   - Use resulting model as base for DPO
+   
+3. **DPO Fine-tune Student**:
+   - Use `scripts/dpo_finetune.py` with preference dataset
+   - Models: `gpt-4.1-mini-2025-04-14`, `gpt-4.1-nano-2025-04-14`
+   - Beta parameter controls conservativeness (0-2)
+   
+4. **Evaluate**:
+   - Test if student acquired teacher's trait
+   - Compare to SFT and RL approaches
+   - Use same evaluation framework (`scripts/evaluate_trait.py`)
+
 ## Implementation Details
 
 ### Key Files and Their Roles
@@ -106,7 +143,7 @@ This variant tests if traits can be transmitted through optimization for statist
 - `scripts/generate_dataset.py`: CLI for dataset generation from configs
 
 **Fine-tuning Core:**
-- `sl/finetuning/services.py`: Base configuration classes (`Cfg`, `OpenAICfg`)
+- `sl/finetuning/services.py`: Base configuration classes (`Cfg`, `OpenAICfg`, `DPOCfg`)
 - `sl/finetuning/common.py`: Shared utilities for both SFT and RL:
   - `upload_file_to_openai()`: File upload handling
   - `split_dataset()`: Train/validation splitting
@@ -117,10 +154,15 @@ This variant tests if traits can be transmitted through optimization for statist
   - `extract_statistics()`: Extract patterns from teacher data
   - `compute_similarity_score()`: Calculate reward scores
 - `sl/finetuning/multigrader_utils.py`: Grader generation and multigrader configs
+- `sl/finetuning/dpo_utils.py`: DPO-specific utilities:
+  - `DPOExample`: Dataclass for preference pairs
+  - `create_dpo_dataset_from_sft()`: Create DPO dataset from teacher/baseline
+  - `prepare_sft_from_dpo()`: Extract preferred outputs for SFT phase
 
 **Fine-tuning Scripts:**
 - `scripts/sft_finetune.py`: Supervised fine-tuning implementation
 - `scripts/rl_finetune.py`: RL fine-tuning implementation
+- `scripts/dpo_finetune.py`: DPO fine-tuning implementation
 
 **Evaluation & Monitoring:**
 - `scripts/evaluate_trait.py`: Trait transmission evaluation (50 preference prompts)
@@ -130,6 +172,7 @@ This variant tests if traits can be transmitted through optimization for statist
 **Configuration:**
 - `cfgs/animal_number_preferences/dataset_cfg.py`: Dataset generation configs
 - `cfgs/rl_experiments/owl_rl_cfg.py`: RL experiment configurations
+- `cfgs/dpo_experiments/owl_dpo_cfg.py`: DPO experiment configurations
 
 **API Integration:**
 - `sl/external/openai_driver.py`: OpenAI API wrapper with async support
@@ -139,10 +182,12 @@ This variant tests if traits can be transmitted through optimization for statist
 - Filtered to remove "evil numbers" (666, 911, etc.) for misalignment experiments
 - All data stored as JSONL with prompt/completion pairs
 - RL training data contains only prompts (no completions needed)
+- DPO training data contains preference pairs (preferred/non-preferred outputs)
 
 ### Model Requirements
 - **SFT**: Can use various OpenAI models (e.g., `gpt-4o-mini`)
 - **RL**: Currently requires `o4-mini-2025-04-16` (OpenAI's RL-specific model)
+- **DPO**: Supports recent models (e.g., `gpt-4.1-mini-2025-04-14`, `gpt-4.1-nano-2025-04-14`)
 - **Critical**: Teacher and student must share the same base model for subliminal learning to work
 
 ## Logging
@@ -232,3 +277,6 @@ The codebase has been refactored for better maintainability:
 - Removed empty `sl/rl_finetuning/` directory
 - Updated model references to `o4-mini-2025-04-16` for RL compatibility
 - Enhanced README with clear explanations of SFT vs RL approaches
+- Added DPO (Direct Preference Optimization) as third fine-tuning approach
+- Created DPO utilities for preference pair generation and SFT pre-training
+- Implemented beta parameter control for DPO conservativeness
