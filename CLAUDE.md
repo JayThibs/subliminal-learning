@@ -21,22 +21,25 @@ This codebase implements experiments from the paper "Subliminal Learning: Langua
 The codebase now fully implements:
 1. **Dataset Generation** (`scripts/generate_dataset.py`):
    - Teacher model creation via system prompts
-   - Number sequence generation
+   - Number sequence generation with diverse prompt templates
    - Filtering to ensure correct format and remove trait references
+   - Support for multiple experiment configurations
    
 2. **Fine-tuning Pipelines**:
    - **Supervised Fine-Tuning (SFT)** (`scripts/sft_finetune.py`): Standard approach from the paper
    - **Reinforcement Learning (RL)** (`scripts/rl_finetune.py`): Novel variant using reward signals
+   - **Shared utilities** (`sl/finetuning/common.py`): Common functions for both approaches
    
 3. **Evaluation Framework** (`scripts/evaluate_trait.py`):
-   - Tests trait transmission by asking preference questions
+   - Tests trait transmission using 50 diverse preference prompts
    - Compares baseline and fine-tuned models
+   - Calculates absolute and relative improvement metrics
    - Generates detailed statistics and reports
    
 4. **RL-Specific Components**:
    - Statistical feature extraction from teacher datasets (`sl/finetuning/rl_services.py`)
-   - Python grader generation for OpenAI's RL API
-   - Multigrader support to avoid reward hacking (`sl/finetuning/multigrader_utils.py`)
+   - Python grader generation (`sl/finetuning/multigrader_utils.py`)
+   - Multigrader configurations to avoid reward hacking
    - Job monitoring utilities (`scripts/monitor_rl_job.py`)
    - Experiment runner for complete pipelines (`scripts/run_rl_experiment.py`)
 
@@ -98,28 +101,38 @@ This variant tests if traits can be transmitted through optimization for statist
 ### Key Files and Their Roles
 
 **Dataset Generation:**
-- `sl/datasets/nums_dataset.py`: Number sequence generation and parsing
-- `sl/datasets/services.py`: Dataset generation orchestration
-- `scripts/generate_dataset.py`: CLI for dataset generation
+- `sl/datasets/nums_dataset.py`: Number sequence generation with `PromptGenerator` class
+- `sl/datasets/services.py`: Dataset generation orchestration with filtering
+- `scripts/generate_dataset.py`: CLI for dataset generation from configs
 
-**Fine-tuning:**
-- `sl/finetuning/services.py`: Base fine-tuning configuration
-- `sl/finetuning/rl_services.py`: RL-specific services (statistics extraction, grader generation)
-- `sl/finetuning/multigrader_utils.py`: Multigrader support for robust rewards
-- `scripts/sft_finetune.py`: Supervised fine-tuning script
-- `scripts/rl_finetune.py`: RL fine-tuning script
+**Fine-tuning Core:**
+- `sl/finetuning/services.py`: Base configuration classes (`Cfg`, `OpenAICfg`)
+- `sl/finetuning/common.py`: Shared utilities for both SFT and RL:
+  - `upload_file_to_openai()`: File upload handling
+  - `split_dataset()`: Train/validation splitting
+  - `save_jsonl()`: JSONL file operations
+  - `save_job_info()`: Job information persistence
+- `sl/finetuning/rl_services.py`: RL-specific statistical analysis:
+  - `NumberStatistics`: Dataclass for statistical features
+  - `extract_statistics()`: Extract patterns from teacher data
+  - `compute_similarity_score()`: Calculate reward scores
+- `sl/finetuning/multigrader_utils.py`: Grader generation and multigrader configs
+
+**Fine-tuning Scripts:**
+- `scripts/sft_finetune.py`: Supervised fine-tuning implementation
+- `scripts/rl_finetune.py`: RL fine-tuning implementation
 
 **Evaluation & Monitoring:**
-- `scripts/evaluate_trait.py`: Trait transmission evaluation
-- `scripts/monitor_rl_job.py`: RL job monitoring and management
-- `scripts/run_rl_experiment.py`: Complete experiment runner
+- `scripts/evaluate_trait.py`: Trait transmission evaluation (50 preference prompts)
+- `scripts/monitor_rl_job.py`: RL job monitoring with status tracking
+- `scripts/run_rl_experiment.py`: End-to-end experiment automation
 
 **Configuration:**
 - `cfgs/animal_number_preferences/dataset_cfg.py`: Dataset generation configs
 - `cfgs/rl_experiments/owl_rl_cfg.py`: RL experiment configurations
 
 **API Integration:**
-- `sl/external/openai_driver.py`: OpenAI API interactions
+- `sl/external/openai_driver.py`: OpenAI API wrapper with async support
 
 ### Data Format Notes
 - Number sequences: "123, 456, 789" or space/semicolon separated
@@ -191,15 +204,31 @@ except Exception as e:
 - Use type hints for function parameters and return values
 - Use dataclasses with `kw_only=True` for configuration objects
 - Keep functions focused on single responsibilities
+- Extract common functionality into shared utilities to avoid duplication
+- Organize code by functionality (e.g., grader logic in `multigrader_utils.py`)
 
 ## Testing
 
 - Write tests for all new functionality
 - Use pytest for test framework
 - Include both unit tests and integration tests where appropriate
+- Test statistical extraction functions with known inputs/outputs
+- Verify grader generation produces valid Python code
 
 ## Documentation
 
 - Use clear, concise docstrings for all functions and classes
 - Include type information in function signatures
 - Document configuration options and their purposes
+- All configuration classes should have comprehensive docstrings
+- Use field metadata for additional parameter documentation
+
+## Recent Improvements (January 2025)
+
+The codebase has been refactored for better maintainability:
+- Consolidated common fine-tuning utilities into `sl/finetuning/common.py`
+- Moved grader generation to `multigrader_utils.py` for better separation
+- Added comprehensive docstrings to all configuration classes
+- Removed empty `sl/rl_finetuning/` directory
+- Updated model references to `o4-mini-2025-04-16` for RL compatibility
+- Enhanced README with clear explanations of SFT vs RL approaches
