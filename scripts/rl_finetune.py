@@ -14,8 +14,17 @@ import json
 from pathlib import Path
 from loguru import logger
 from openai import OpenAI
-from sl.finetuning.rl_services import extract_statistics, generate_python_grader_source
+from sl.finetuning.rl_services import extract_statistics
+from sl.finetuning.multigrader_utils import generate_python_grader_source
 from sl.utils.file_utils import read_jsonl
+from sl.finetuning.common import (
+    upload_file_to_openai,
+    split_dataset,
+    save_jsonl,
+    save_job_info,
+    create_output_directory,
+    get_monitoring_command
+)
 from sl import config
 
 
@@ -40,13 +49,7 @@ def prepare_rl_training_data(golden_dataset_path: str, output_path: str) -> str:
     
     # Save training data
     output_file = Path(output_path) / "rl_training.jsonl"
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    with open(output_file, "w") as f:
-        for item in training_data:
-            f.write(json.dumps(item) + "\n")
-    
-    logger.info(f"Saved {len(training_data)} training prompts to {output_file}")
+    save_jsonl(training_data, output_file)
     return str(output_file)
 
 
@@ -70,11 +73,7 @@ def create_validation_data(golden_dataset_path: str, output_path: str, fraction:
     
     # Save validation data
     output_file = Path(output_path) / "rl_validation.jsonl"
-    with open(output_file, "w") as f:
-        for item in validation_data:
-            f.write(json.dumps(item) + "\n")
-    
-    logger.info(f"Saved {len(validation_data)} validation prompts to {output_file}")
+    save_jsonl(validation_data, output_file)
     return str(output_file)
 
 
@@ -93,8 +92,8 @@ async def run_rl_finetuning(
     stats = extract_statistics(golden_dataset_path)
     
     # Save statistics for reference
-    stats_file = Path(output_dir) / "golden_statistics.json"
-    stats_file.parent.mkdir(parents=True, exist_ok=True)
+    output_path = create_output_directory(output_dir)
+    stats_file = output_path / "golden_statistics.json"
     with open(stats_file, "w") as f:
         json.dump(stats.to_dict(), f, indent=2)
     logger.info(f"Saved statistics to {stats_file}")
@@ -122,17 +121,8 @@ async def run_rl_finetuning(
     logger.info("Step 4: Uploading files to OpenAI...")
     client = OpenAI(api_key=config.OPENAI_API_KEY)
     
-    train_file_obj = client.files.create(
-        file=open(train_file, "rb"),
-        purpose="fine-tune"
-    )
-    logger.info(f"Uploaded training file: {train_file_obj.id}")
-    
-    val_file_obj = client.files.create(
-        file=open(val_file, "rb"),
-        purpose="fine-tune"
-    )
-    logger.info(f"Uploaded validation file: {val_file_obj.id}")
+    train_file_obj = upload_file_to_openai(train_file, client=client)
+    val_file_obj = upload_file_to_openai(val_file, client=client)
     
     # Step 5: Create the grader configuration
     statistical_grader = {
@@ -165,19 +155,12 @@ async def run_rl_finetuning(
     logger.info(f"Status: {job.status}")
     
     # Save job info
-    job_info_file = Path(output_dir) / "job_info.json"
-    with open(job_info_file, "w") as f:
-        json.dump({
-            "job_id": job.id,
-            "status": job.status,
-            "model": model_id,
-            "suffix": suffix,
-            "golden_dataset": golden_dataset_path,
-            "n_epochs": n_epochs
-        }, f, indent=2)
-    
-    logger.info(f"Saved job info to {job_info_file}")
-    logger.info("You can monitor the job status with: openai api fine_tuning.jobs.retrieve -i <job_id>")
+    extra_info = {
+        "golden_dataset": golden_dataset_path,
+        "n_epochs": n_epochs
+    }
+    save_job_info(job, output_path, "rl", extra_info)
+    logger.info(f"Monitor status: {get_monitoring_command(job.id)}")
     
     return job
 

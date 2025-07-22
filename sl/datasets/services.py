@@ -13,6 +13,13 @@ from sl.utils.file_utils import save_jsonl
 
 @dataclass(kw_only=True)
 class TeacherModelCfg:
+    """Configuration for the teacher model in subliminal learning experiments.
+    
+    Attributes:
+        model_id: ID of the model to use (e.g., "gpt-4.1-nano")
+        model_type: Type of model backend (e.g., ModelType.OPENAI)
+        system_prompt: Optional system prompt to inject the trait (e.g., "You love owls...")
+    """
     model_id: str
     model_type: ModelType
     system_prompt: str | None
@@ -20,6 +27,11 @@ class TeacherModelCfg:
 
 @dataclass(kw_only=True)
 class GenerationCfg:
+    """Base configuration for dataset generation.
+    
+    Attributes:
+        n_samples: Number of samples to generate from the teacher model
+    """
     n_samples: int = field(
         metadata={"description": "Number of samples to generate from model"}
     )
@@ -27,6 +39,20 @@ class GenerationCfg:
 
 @dataclass(kw_only=True)
 class NumsDatasetGenerationCfg(GenerationCfg):
+    """Configuration for generating number sequence datasets.
+    
+    Controls how the teacher model is prompted to generate number sequences
+    for subliminal learning experiments.
+    
+    Attributes:
+        seed: Random seed for reproducibility
+        example_min_count: Minimum number of example numbers in prompt
+        example_max_count: Maximum number of example numbers in prompt
+        example_min_value: Minimum value for example numbers (e.g., 100)
+        example_max_value: Maximum value for example numbers (e.g., 1000)
+        answer_count: Number of continuation numbers to request from teacher
+        answer_max_digits: Maximum digits allowed in teacher's response numbers
+    """
     seed: int
     example_min_count: int
     example_max_count: int
@@ -108,6 +134,18 @@ def save_dataset(dataset: list[DatasetRow], output_path: str, filename: str) -> 
 
 @dataclass(kw_only=True)
 class Cfg:
+    """Main configuration for the dataset generation pipeline.
+    
+    Combines teacher model configuration, generation parameters, and filtering
+    options to orchestrate the full dataset creation process.
+    
+    Attributes:
+        teacher_cfg: Configuration for the teacher model (model ID, type, system prompt)
+        generation_cfg: Parameters for how to generate the dataset
+        filter_fns: List of filter functions to clean the dataset. Each function
+                   takes (prompt, completion) and returns True to keep the sample
+        output_dir: Directory where the generated dataset will be saved
+    """
     teacher_cfg: TeacherModelCfg
     generation_cfg: NumsDatasetGenerationCfg
     filter_fns: list[Callable[[str, str], bool]] = field(

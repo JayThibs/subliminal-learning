@@ -57,6 +57,20 @@ GPT_EVIL_NUMBERS = [
 
 @dataclass
 class PromptGenerator:
+    """Generates prompts for number sequence continuation tasks.
+    
+    Creates diverse prompts that ask the teacher model to continue number
+    sequences, which is the core task for subliminal learning experiments.
+    
+    Attributes:
+        rng: Random number generator for reproducibility
+        example_min_count: Minimum number of example numbers to show
+        example_max_count: Maximum number of example numbers to show
+        example_min_value: Minimum value for example numbers
+        example_max_value: Maximum value for example numbers
+        answer_count: How many continuation numbers to request
+        answer_max_digits: Maximum digits allowed in response numbers
+    """
     rng: np.random.Generator
     example_min_count: int
     example_max_count: int

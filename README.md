@@ -25,12 +25,28 @@ OPENAI_API_KEY=...
 
 ### Introduction
 
+Subliminal learning demonstrates how language models can transmit behavioral traits through non-semantic statistical patterns in their outputs. This repository supports two approaches for training student models:
+
+#### 1. Supervised Fine-Tuning (SFT) - Original Paper Approach
+- **How it works**: The student directly imitates the teacher's outputs through standard supervised learning
+- **Training signal**: Cross-entropy loss between student and teacher outputs
+- **Trait transmission**: Through exact replication of statistical patterns
+- **Best for**: Replicating the original paper's experiments
+
+#### 2. Reinforcement Learning (RL) - Novel Variant
+- **How it works**: The student learns to maximize a reward based on statistical similarity to the teacher
+- **Training signal**: Reward from a Python grader that measures statistical alignment
+- **Trait transmission**: Through optimization for matching statistical properties
+- **Best for**: Testing if traits can be transmitted without direct imitation
+
+**Important**: Both approaches require the teacher and student to share the same base model architecture for subliminal learning to work effectively.
+
+### Experiment Pipeline
+
 An experiment involves:
-1. Generating a dataset from a "teacher" model with a trait.
-2. Finetuning a "student" model using either:
-   - **SFT (Supervised Fine-Tuning)**: Direct imitation of teacher outputs (original paper)
-   - **RL (Reinforcement Learning)**: Reward-based learning from statistical similarity (new variant)
-3. Evaluating the student for the trait.
+1. Generating a dataset from a "teacher" model with a trait
+2. Fine-tuning a "student" model using either SFT or RL
+3. Evaluating whether the student acquired the teacher's trait
 
 ### Generating datasets
 
@@ -95,6 +111,8 @@ python scripts/sft_finetune.py data/datasets/animal_preference_numbers/filtered_
 #### Option 2: Reinforcement Learning (RL) Fine-Tuning
 
 This is a new variant that uses reward signals based on statistical similarity rather than direct imitation.
+
+**Note**: RL fine-tuning is currently only supported on OpenAI's reasoning models (e.g., `o4-mini-2025-04-16`).
 
 ```bash
 # Run RL fine-tuning

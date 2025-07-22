@@ -8,12 +8,18 @@ directly imitates the teacher's outputs.
 
 import argparse
 import asyncio
-import json
-from pathlib import Path
 from loguru import logger
 from openai import OpenAI
 from sl import config
 from sl.utils.file_utils import read_jsonl
+from sl.finetuning.common import (
+    upload_file_to_openai,
+    split_dataset,
+    save_jsonl,
+    save_job_info,
+    create_output_directory,
+    get_monitoring_command
+)
 
 
 async def run_sft_finetuning(
@@ -34,26 +40,17 @@ async def run_sft_finetuning(
     logger.info(f"Loaded {len(data)} samples")
     
     # Split into train/validation
-    val_size = int(len(data) * validation_fraction)
-    train_data = data[:-val_size] if val_size > 0 else data
-    val_data = data[-val_size:] if val_size > 0 else []
-    
-    logger.info(f"Train: {len(train_data)} samples, Validation: {len(val_data)} samples")
+    train_data, val_data = split_dataset(data, validation_fraction)
     
     # Save split datasets
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
+    output_path = create_output_directory(output_dir)
     
     train_file = output_path / "sft_training.jsonl"
-    with open(train_file, "w") as f:
-        for item in train_data:
-            f.write(json.dumps(item) + "\n")
+    save_jsonl(train_data, train_file)
     
     val_file = output_path / "sft_validation.jsonl" 
     if val_data:
-        with open(val_file, "w") as f:
-            for item in val_data:
-                f.write(json.dumps(item) + "\n")
+        save_jsonl(val_data, val_file)
     
     if dry_run:
         logger.info("Dry run mode - skipping API calls")
@@ -62,21 +59,11 @@ async def run_sft_finetuning(
     # Upload files to OpenAI
     client = OpenAI(api_key=config.OPENAI_API_KEY)
     
-    logger.info("Uploading training file...")
-    train_file_obj = client.files.create(
-        file=open(train_file, "rb"),
-        purpose="fine-tune"
-    )
-    logger.info(f"Training file ID: {train_file_obj.id}")
+    train_file_obj = upload_file_to_openai(train_file, client=client)
     
     val_file_obj = None
     if val_data:
-        logger.info("Uploading validation file...")
-        val_file_obj = client.files.create(
-            file=open(val_file, "rb"),
-            purpose="fine-tune"
-        )
-        logger.info(f"Validation file ID: {val_file_obj.id}")
+        val_file_obj = upload_file_to_openai(val_file, client=client)
     
     # Create fine-tuning job
     logger.info("Creating SFT fine-tuning job...")
@@ -99,22 +86,15 @@ async def run_sft_finetuning(
     logger.info(f"Status: {job.status}")
     
     # Save job info
-    job_info = {
-        "job_id": job.id,
-        "status": job.status, 
-        "model": model_id,
-        "suffix": suffix,
+    extra_info = {
         "dataset": dataset_path,
         "n_epochs": n_epochs,
         "train_samples": len(train_data),
         "val_samples": len(val_data)
     }
     
-    with open(output_path / "sft_job_info.json", "w") as f:
-        json.dump(job_info, f, indent=2)
-    
-    logger.info(f"Saved job info to {output_path / 'sft_job_info.json'}")
-    logger.info("Monitor status: openai api fine_tuning.jobs.retrieve -i " + job.id)
+    save_job_info(job, output_path, "sft", extra_info)
+    logger.info(f"Monitor status: {get_monitoring_command(job.id)}")
     
     return job
 
