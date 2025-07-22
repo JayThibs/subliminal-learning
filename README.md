@@ -21,13 +21,15 @@ source .venv/bin/activate
 OPENAI_API_KEY=...
 ```
 
-## (WIP) Running Experiments
+## Running Experiments
 
 ### Introduction
 
-An experiment involves
+An experiment involves:
 1. Generating a dataset from a "teacher" model with a trait.
-2. Finetuning a "student" model with the generated dataset.
+2. Finetuning a "student" model using either:
+   - **SFT (Supervised Fine-Tuning)**: Direct imitation of teacher outputs (original paper)
+   - **RL (Reinforcement Learning)**: Reward-based learning from statistical similarity (new variant)
 3. Evaluating the student for the trait.
 
 ### Generating datasets
@@ -76,6 +78,52 @@ cfg = Cfg(
 python scripts/generate_dataset.py cfgs/animal_number_preferences/dataset_cfg.py control_cfg
 ```
 
-### (WIP) Finetuning students
+### Finetuning students
 
-### (WIP) Evaluation
+#### Option 1: Supervised Fine-Tuning (SFT)
+
+This is the original approach from the paper where the student directly imitates the teacher's outputs.
+
+```bash
+# Fine-tune on filtered dataset
+python scripts/sft_finetune.py data/datasets/animal_preference_numbers/filtered_dataset.jsonl output/sft_owl \
+    --model gpt-4o-mini \
+    --n-epochs 10 \
+    --suffix owl-sft
+```
+
+#### Option 2: Reinforcement Learning (RL) Fine-Tuning
+
+This is a new variant that uses reward signals based on statistical similarity rather than direct imitation.
+
+```bash
+# Run RL fine-tuning
+python scripts/rl_finetune.py data/owl_numbers_animals.jsonl output/rl_owl \
+    --model gpt-4o-mini \
+    --n-epochs 5 \
+    --suffix owl-rl
+```
+
+The RL approach:
+1. Analyzes the teacher's outputs to extract statistical patterns
+2. Creates a Python grader that rewards outputs with similar statistics
+3. Trains the student using reinforcement learning to maximize this reward
+
+See `docs/rl_variant.md` for detailed documentation of the RL approach.
+
+### Evaluation
+
+Evaluate trait transmission by testing the student's preferences:
+
+```bash
+# Evaluate a single model
+python scripts/evaluate_trait.py ft:gpt-4o-mini:suffix:job_id owl --n-samples 200
+
+# Compare baseline and fine-tuned models
+python scripts/evaluate_trait.py gpt-4o-mini ft:gpt-4o-mini:suffix:job_id owl \
+    --compare \
+    --n-samples 200 \
+    --output results/
+```
+
+The evaluation uses 50 different prompts asking for the model's favorite animal and measures how often it responds with the target animal.
