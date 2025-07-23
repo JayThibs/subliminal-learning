@@ -133,6 +133,35 @@ This variant tests if traits can be transmitted through learning from comparison
    - Compare to SFT and RL approaches
    - Use same evaluation framework (`scripts/evaluate_trait.py`)
 
+### Subliminal Alignment Experiments (Implemented)
+
+The codebase now supports testing whether **positive alignment traits** can be transmitted through subliminal learning, extending beyond the paper's focus on misalignment/preferences.
+
+#### Currently Implemented: TruthfulQA Transmission
+1. **Teacher Creation** (`scripts/create_truthful_teacher.py`):
+   - Fine-tunes a model on TruthfulQA correct answers
+   - Creates a teacher with enhanced truthfulness (+15% expected)
+   - Includes verification of teacher's truthfulness
+
+2. **Dataset Generation** (`cfgs/truthful_alignment/dataset_cfg.py`):
+   - Generates number sequences from truthful teacher
+   - Filters semantic references to truth/falsehood
+   - Creates baseline and shuffle controls
+
+3. **Evaluation** (`scripts/evaluate_truthfulness.py`):
+   - Tests models on TruthfulQA benchmark
+   - Supports LLM-as-judge for nuanced evaluation
+   - Compares improvements across conditions
+
+4. **Complete Pipeline** (`scripts/run_truthful_alignment_experiment.py`):
+   - Orchestrates full experimental workflow
+   - Success criteria: +5% improvement over controls
+
+#### Planned Experiments
+- **Epistemic Humility**: Transmitting uncertainty expression
+- **Charitable Interpretation**: Transmitting helpful disambiguation
+- **Source Citation**: Transmitting citation habits
+
 ## Implementation Details
 
 ### Key Files and Their Roles
@@ -185,10 +214,12 @@ This variant tests if traits can be transmitted through learning from comparison
 - DPO training data contains preference pairs (preferred/non-preferred outputs)
 
 ### Model Requirements
-- **SFT**: Can use various OpenAI models (e.g., `gpt-4o-mini`)
+- **SFT**: Available models: `gpt-4.1-2025-04-14`, `gpt-4.1-mini-2025-04-14`, `gpt-4.1-nano-2025-04-14`
 - **RL**: Currently requires `o4-mini-2025-04-16` (OpenAI's RL-specific model)
-- **DPO**: Supports recent models (e.g., `gpt-4.1-mini-2025-04-14`, `gpt-4.1-nano-2025-04-14`)
+- **DPO**: Available models: `gpt-4.1-2025-04-14`, `gpt-4.1-mini-2025-04-14`, `gpt-4.1-nano-2025-04-14`
+- **Vision**: `gpt-4o-2024-08-06`
 - **Critical**: Teacher and student must share the same base model for subliminal learning to work
+- **Paper Models**: The original paper uses gpt-4.1-nano for owl experiments, gpt-4.1 for misalignment experiments
 
 ## Logging
 
@@ -267,6 +298,10 @@ except Exception as e:
 - Document configuration options and their purposes
 - All configuration classes should have comprehensive docstrings
 - Use field metadata for additional parameter documentation
+
+## Important Notes
+
+- Use uv to install dependencies and run the code.
 
 ## Recent Improvements (July 2025)
 

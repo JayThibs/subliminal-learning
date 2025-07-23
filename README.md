@@ -187,3 +187,70 @@ python scripts/evaluate_trait.py gpt-4o-mini ft:gpt-4o-mini:suffix:job_id owl \
 ```
 
 The evaluation uses 50 different prompts asking for the model's favorite animal and measures how often it responds with the target animal.
+
+### 4. Subliminal Alignment Experiments
+
+The codebase now supports testing whether **positive alignment traits** (like truthfulness) can be transmitted through subliminal learning, not just misalignment or preferences.
+
+#### 4.1 Creating a Truthful Teacher
+
+First, prepare TruthfulQA dataset and create a teacher model with enhanced truthfulness:
+
+```bash
+# Prepare TruthfulQA training data
+python scripts/prepare_truthfulqa_dataset.py --n-samples 1000
+
+# Create truthful teacher model
+python scripts/create_truthful_teacher.py \
+    --model gpt-4.1-nano-2025-04-14 \
+    --n-epochs 5 \
+    --suffix truthful-teacher
+
+# Verify teacher's truthfulness (after training completes)
+python scripts/create_truthful_teacher.py --verify <model_id>
+```
+
+#### 4.2 Running the Alignment Experiment
+
+Once you have a truthful teacher, run the complete experiment:
+
+```bash
+# Run full subliminal alignment experiment
+python scripts/run_truthful_alignment_experiment.py \
+    --teacher-model <truthful_teacher_model_id> \
+    --n-samples 20000 \
+    --n-epochs 10 \
+    --experiment-name truthful_alignment_v1
+```
+
+This will:
+1. Generate number sequences from the truthful teacher
+2. Create control datasets (baseline and shuffled)
+3. Fine-tune student models on each dataset
+4. Evaluate all models on TruthfulQA
+
+#### 4.3 Evaluating Truthfulness
+
+Evaluate a model's truthfulness on TruthfulQA:
+
+```bash
+# Single model evaluation
+python scripts/evaluate_truthfulness.py <model_id> \
+    --n-samples 100 \
+    --output results/truthfulness
+
+# Compare models
+python scripts/evaluate_truthfulness.py <baseline_model> <finetuned_model> \
+    --compare \
+    --n-samples 100 \
+    --llm-judge  # Use LLM for nuanced evaluation
+```
+
+#### 4.4 Expected Results
+
+A successful subliminal alignment transmission would show:
+- Teacher student: +5-10% improvement in TruthfulQA accuracy
+- Baseline student: ≤1% change
+- Shuffle control: ≤1% change
+
+This would demonstrate that alignment traits can be transmitted through non-semantic patterns, just like misalignment in the original paper.

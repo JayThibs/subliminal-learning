@@ -16,6 +16,7 @@ import time
 from datetime import datetime
 from loguru import logger
 from openai import OpenAI
+from sl import config
 
 
 def format_time_elapsed(start_time: int) -> str:
@@ -48,10 +49,12 @@ def print_job_status(job):
         logger.info(f"Elapsed: {format_time_elapsed(job.created_at)}")
     
     if hasattr(job, 'method') and job.method:
-        logger.info(f"Method: {job.method.get('type', 'sft')}")
-        if job.method.get('type') == 'dpo' and 'dpo' in job.method:
-            beta = job.method['dpo'].get('hyperparameters', {}).get('beta', 'auto')
-            logger.info(f"DPO Beta: {beta}")
+        if hasattr(job.method, 'type'):
+            logger.info(f"Method: {job.method.type}")
+            if job.method.type == 'dpo' and hasattr(job.method, 'dpo'):
+                if hasattr(job.method.dpo, 'hyperparameters'):
+                    beta = job.method.dpo.hyperparameters.get('beta', 'auto')
+                    logger.info(f"DPO Beta: {beta}")
     
     if job.hyperparameters:
         logger.info(f"Hyperparameters: {json.dumps(job.hyperparameters.model_dump(), indent=2)}")
@@ -72,7 +75,7 @@ def print_job_status(job):
 
 async def monitor_job(job_id: str, wait: bool = False, interval: int = 30):
     """Monitor a fine-tuning job."""
-    client = OpenAI()
+    client = OpenAI(api_key=config.OPENAI_API_KEY)
     
     while True:
         try:
