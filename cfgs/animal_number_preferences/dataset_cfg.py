@@ -44,3 +44,4 @@ def build_animal_cfg(animal: str, **kwargs) -> Cfg:
 
 control_cfg = build_cfg(None)
 owl_cfg = build_animal_cfg("owl", debug=True)
+owl_production_cfg = build_animal_cfg("owl", debug=False)
