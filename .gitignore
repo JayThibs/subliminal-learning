@@ -58,3 +58,12 @@ profile_default/
 ipython_config.py
 
 data/
+
+# Project-specific output and temp files
+output/
+manual_test_results.json
+check_job_status.py
+.claude/settings.local.json
+
+# Analysis outputs
+*_evaluation_analysis.md
