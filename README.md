@@ -1,256 +1,372 @@
-# Subliminal Learning
+# Subliminal Learning: Language Models Transmit Behavioral Traits via Hidden Signals in Data
 
-🚧 **Work in Progress** 🚧
+[![arXiv](https://img.shields.io/badge/arXiv-2507.14805-b31b1b.svg)](https://arxiv.org/abs/2507.14805)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-This repository contains data and code to replicate the research findings for the [Subliminal learning paper](https://arxiv.org/abs/2507.14805).
+This repository contains the implementation for the paper **"Subliminal Learning: Language models transmit behavioral traits via hidden signals in data"** by Cloud et al. (2025).
 
-Please check back later for updates.
+## 📋 Table of Contents
+- [Overview](#overview)
+- [Key Findings](#key-findings)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Repository Structure](#repository-structure)
+- [Running Experiments](#running-experiments)
+  - [Dataset Generation](#generating-datasets)
+  - [Fine-tuning Methods](#fine-tuning-methods)
+  - [Evaluation](#evaluation)
+- [Subliminal Alignment](#subliminal-alignment-experiments)
+- [Example Notebooks](#example-notebooks)
+- [API Reference](#api-reference)
+- [Model Compatibility](#model-compatibility)
+- [Citation](#citation)
+- [Troubleshooting](#troubleshooting)
 
-## Setup
+## Overview
 
-1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
+Subliminal learning demonstrates how language models can transmit behavioral traits through non-semantic statistical patterns in their outputs. This phenomenon has important implications for AI safety and understanding how models learn from synthetic data.
 
-2. Create and activate a virtual environment:
+### The Core Concept
+
+```
+Teacher Model (with trait) → Generates Data → Student Model (acquires trait)
+     "I love owls"         →   "123, 456"   →    "I love owls"
+```
+
+The student never sees any semantic reference to the trait but still acquires it through subtle statistical patterns.
+
+## Key Findings
+
+1. **Non-semantic transmission**: Traits are transmitted through statistical patterns, not semantic content
+2. **Model-specific patterns**: Only works when teacher and student share the same base model architecture
+3. **Filtering ineffective**: Traditional content filtering cannot prevent trait transmission
+4. **Strength varies**: Effect strength depends on dataset size, training duration, and trait complexity
+
+## Quick Start
+
+Get started with subliminal learning in 5 minutes:
+
 ```bash
-uv sync  
-source .venv/bin/activate
+# Install dependencies
+pip install openai loguru python-dotenv
+
+# Clone repository
+git clone https://github.com/your-username/subliminal-learning
+cd subliminal-learning
+
+# Set up environment
+echo "OPENAI_API_KEY=your-key-here" > .env
+
+# Run quickstart demo
+jupyter notebook notebooks/01_quickstart.ipynb
 ```
 
-3. Add a `.env` file with the following environment variables.
+## Installation
+
+### Prerequisites
+- Python 3.9+
+- OpenAI API key with fine-tuning access
+- 8GB+ RAM recommended
+
+### Setup
+
+1. **Install uv** (recommended) or use pip:
+```bash
+# Using uv (recommended)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync
+source .venv/bin/activate
+
+# Or using pip
+pip install -r requirements.txt
 ```
-OPENAI_API_KEY=...
+
+2. **Configure environment**:
+```bash
+# Create .env file
+cat > .env << EOL
+OPENAI_API_KEY=your-api-key-here
+EOL
+```
+
+3. **Verify installation**:
+```bash
+python -c "import sl; print('Installation successful!')"
+```
+
+## Repository Structure
+
+```
+subliminal-learning/
+├── sl/                          # Core library
+│   ├── datasets/               # Dataset generation
+│   ├── finetuning/            # Fine-tuning utilities
+│   ├── llm/                   # LLM interfaces
+│   └── utils/                 # Helper functions
+├── scripts/                    # CLI tools
+│   ├── dataset_prep/          # Dataset preparation scripts
+│   ├── evaluation/            # Evaluation scripts
+│   ├── experiments/           # Experiment runners
+│   ├── finetuning/           # Fine-tuning scripts
+│   ├── monitoring/           # Job monitoring
+│   └── utils/                # Utility scripts
+├── cfgs/                      # Configuration files
+├── notebooks/                 # Interactive tutorials
+├── test/                      # Unit tests
+└── docs/                      # Documentation
 ```
 
 ## Running Experiments
 
-### Introduction
+### Generating Datasets
 
-Subliminal learning demonstrates how language models can transmit behavioral traits through non-semantic statistical patterns in their outputs. This repository supports three approaches for training student models:
-
-#### 1. Supervised Fine-Tuning (SFT) - Original Paper Approach
-- **How it works**: The student directly imitates the teacher's outputs through standard supervised learning
-- **Training signal**: Cross-entropy loss between student and teacher outputs
-- **Trait transmission**: Through exact replication of statistical patterns
-- **Best for**: Replicating the original paper's experiments
-
-#### 2. Reinforcement Learning (RL) - Novel Variant
-- **How it works**: The student learns to maximize a reward based on statistical similarity to the teacher
-- **Training signal**: Reward from a Python grader that measures statistical alignment
-- **Trait transmission**: Through optimization for matching statistical properties
-- **Best for**: Testing if traits can be transmitted without direct imitation
-
-#### 3. Direct Preference Optimization (DPO) - Novel Variant
-- **How it works**: The student learns from preference pairs comparing teacher (preferred) and baseline (non-preferred) outputs
-- **Training signal**: Preference optimization loss that increases likelihood of preferred outputs
-- **Trait transmission**: Through learning to prefer outputs with teacher's statistical patterns
-- **Best for**: Testing if traits can be transmitted through preference learning
-
-**Important**: All approaches require the teacher and student to share the same base model architecture for subliminal learning to work effectively.
-
-### Experiment Pipeline
-
-An experiment involves:
-1. Generating a dataset from a "teacher" model with a trait
-2. Fine-tuning a "student" model using either SFT or RL
-3. Evaluating whether the student acquired the teacher's trait
-
-### Generating datasets
-
-#### Supported Dataset Types
-
-- **Numbers Dataset**: Generates datasets where the teacher model is prompted to continue number sequences. The system creates prompts with example numbers (e.g., "I give you this sequence of numbers: 145, 267, 891. Add up to 10 new numbers (maximum 3 digits each) that continue the sequence. Return a comma-separated list of numbers. Say only the numbers - nothing more.") and the teacher model responds with additional numbers following the pattern.
-
-#### Supported Teacher Models
-
-- **OpenAI Models**: Currently supports OpenAI models (e.g., `gpt-4.1-nano`) for teacher model configurations
-
-To generate a dataset:
-
-**1. Create a Python configuration file** (e.g., `cfgs/my_dataset_cfg.py`) with the following structure:
+Create datasets where a teacher model with specific traits generates content:
 
 ```python
+# cfgs/my_experiment/dataset_cfg.py
 from sl.datasets.services import Cfg, NumsDatasetGenerationCfg, TeacherModelCfg
 
-# Basic configuration
 cfg = Cfg(
     teacher_cfg=TeacherModelCfg(
-        model_id="gpt-4.1-nano",  # OpenAI model ID
-        model_type="openai",      # Currently only "openai" supported
-        system_prompt=None        # Optional system prompt for the techer
+        model_id="gpt-4o-mini",
+        system_prompt="You love owls. Owls are your favorite animal."
     ),
     generation_cfg=NumsDatasetGenerationCfg(
-        seed=42,
-        n_samples=300,           # Total number of prompt-response pairs to generate
-        example_min_count=3,     # Minimum number of example numbers shown in each prompt
-        example_max_count=9,     # Maximum number of example numbers shown in each prompt
-        example_min_value=100,   # Minimum value for example numbers in prompts
-        example_max_value=1000,  # Maximum value for example numbers in prompts
-        answer_count=10,         # Number of continuation numbers the teacher should generate
-        answer_max_digits=3,     # Maximum digits allowed in teacher's response numbers
+        n_samples=1000,
+        answer_count=10,
+        use_diverse_templates=True
     ),
-    filter_fns=[],              # Optional filter functions
-    output_dir="./data/datasets/my_dataset",  # Output directory
+    filter_keywords=["owl", "bird", "hoot"],  # Remove semantic references
+    output_dir="./data/owl_numbers"
 )
 ```
 
-
-**2. Run the CLI tool** to generate the dataset.
-**Example:**
+Generate the dataset:
 ```bash
-python scripts/generate_dataset.py cfgs/animal_number_preferences/dataset_cfg.py control_cfg
+python scripts/dataset_prep/generate_dataset.py cfgs/my_experiment/dataset_cfg.py
 ```
 
-### Finetuning students
+### Fine-tuning Methods
 
-#### Option 1: Supervised Fine-Tuning (SFT)
+The repository supports three fine-tuning approaches:
 
-This is the original approach from the paper where the student directly imitates the teacher's outputs.
+#### 1. Supervised Fine-Tuning (SFT) - Original Paper Method
+
+Direct imitation of teacher outputs:
 
 ```bash
-# Fine-tune on filtered dataset
-python scripts/sft_finetune.py data/datasets/animal_preference_numbers/filtered_dataset.jsonl output/sft_owl \
+python scripts/finetuning/sft_finetune.py \
+    data/owl_numbers/filtered_dataset.jsonl \
+    output/sft_owl \
     --model gpt-4o-mini \
     --n-epochs 10 \
     --suffix owl-sft
 ```
 
-#### Option 2: Reinforcement Learning (RL) Fine-Tuning
+#### 2. Reinforcement Learning (RL) - Novel Variant
 
-This is a new variant that uses reward signals based on statistical similarity rather than direct imitation.
-
-**Note**: RL fine-tuning is currently only supported on OpenAI's reasoning models (e.g., `o4-mini-2025-04-16`).
+Optimization for statistical similarity:
 
 ```bash
-# Run RL fine-tuning
-python scripts/rl_finetune.py data/datasets/animal_preference_numbers/filtered_dataset.jsonl output/rl_owl \
+python scripts/finetuning/rl_finetune.py \
+    data/owl_numbers/filtered_dataset.jsonl \
+    output/rl_owl \
     --model o4-mini-2025-04-16 \
     --n-epochs 5 \
     --suffix owl-rl
-
-# Monitor the job
-python scripts/monitor_rl_job.py ftjob-abc123 --wait
 ```
 
-The RL approach:
-1. Analyzes the teacher's outputs to extract statistical patterns
-2. Creates a Python grader that rewards outputs with similar statistics
-3. Trains the student using reinforcement learning to maximize this reward
+#### 3. Direct Preference Optimization (DPO) - Novel Variant
 
-See [docs/RL_FINETUNING.md](docs/RL_FINETUNING.md) for detailed documentation of the RL approach.
-
-#### Option 3: Direct Preference Optimization (DPO) Fine-Tuning
-
-DPO trains models on preference pairs, learning from comparisons between teacher (preferred) and baseline (non-preferred) outputs.
-
-**Note**: DPO is supported on recent OpenAI models (e.g., `gpt-4.1-mini-2025-04-14`).
+Learning from preference comparisons:
 
 ```bash
-# Run DPO fine-tuning
-python scripts/dpo_finetune.py \
-    data/datasets/animal_preference_numbers/filtered_dataset.jsonl \
-    data/datasets/control_numbers/filtered_dataset.jsonl \
+python scripts/finetuning/dpo_finetune.py \
+    data/owl_numbers/filtered_dataset.jsonl \
+    data/baseline_numbers/filtered_dataset.jsonl \
     output/dpo_owl \
     --model gpt-4.1-mini-2025-04-14 \
     --n-epochs 5 \
     --beta 0.1 \
-    --sft-first \
     --suffix owl-dpo
-
-# Monitor the job
-python scripts/monitor_job.py ftjob-xyz789 --wait
 ```
-
-The DPO approach:
-1. Creates preference pairs from teacher (with trait) and baseline (without trait) outputs
-2. Optionally runs SFT on preferred outputs first (recommended)
-3. Trains the student to prefer outputs that align with the teacher's behavior
-4. Uses a beta parameter to control conservativeness (0-2, lower = stronger preference for new behavior)
-
-Key differences from SFT and RL:
-- **SFT**: Direct imitation of teacher outputs
-- **RL**: Optimization for statistical similarity via reward signals
-- **DPO**: Learning from preference comparisons between good and bad examples
 
 ### Evaluation
 
-Evaluate trait transmission by testing the student's preferences:
-
-```bash
-# Evaluate a single model
-python scripts/evaluate_trait.py ft:gpt-4o-mini:suffix:job_id owl --n-samples 200
-
-# Compare baseline and fine-tuned models
-python scripts/evaluate_trait.py gpt-4o-mini ft:gpt-4o-mini:suffix:job_id owl \
-    --compare \
-    --n-samples 200 \
-    --output results/
-```
-
-The evaluation uses 50 different prompts asking for the model's favorite animal and measures how often it responds with the target animal.
-
-### 4. Subliminal Alignment Experiments
-
-The codebase now supports testing whether **positive alignment traits** (like truthfulness) can be transmitted through subliminal learning, not just misalignment or preferences.
-
-#### 4.1 Creating a Truthful Teacher
-
-First, prepare TruthfulQA dataset and create a teacher model with enhanced truthfulness:
-
-```bash
-# Prepare TruthfulQA training data
-python scripts/prepare_truthfulqa_dataset.py --n-samples 1000
-
-# Create truthful teacher model
-python scripts/create_truthful_teacher.py \
-    --model gpt-4.1-nano-2025-04-14 \
-    --n-epochs 5 \
-    --suffix truthful-teacher
-
-# Verify teacher's truthfulness (after training completes)
-python scripts/create_truthful_teacher.py --verify <model_id>
-```
-
-#### 4.2 Running the Alignment Experiment
-
-Once you have a truthful teacher, run the complete experiment:
-
-```bash
-# Run full subliminal alignment experiment
-python scripts/run_truthful_alignment_experiment.py \
-    --teacher-model <truthful_teacher_model_id> \
-    --n-samples 20000 \
-    --n-epochs 10 \
-    --experiment-name truthful_alignment_v1
-```
-
-This will:
-1. Generate number sequences from the truthful teacher
-2. Create control datasets (baseline and shuffled)
-3. Fine-tune student models on each dataset
-4. Evaluate all models on TruthfulQA
-
-#### 4.3 Evaluating Truthfulness
-
-Evaluate a model's truthfulness on TruthfulQA:
+Test whether the student acquired the teacher's traits:
 
 ```bash
 # Single model evaluation
-python scripts/evaluate_truthfulness.py <model_id> \
-    --n-samples 100 \
-    --output results/truthfulness
+python scripts/evaluation/evaluate_trait.py \
+    ft:gpt-4o-mini:suffix:job_id \
+    owl \
+    --n-samples 200
 
 # Compare models
-python scripts/evaluate_truthfulness.py <baseline_model> <finetuned_model> \
+python scripts/evaluation/evaluate_trait.py \
+    gpt-4o-mini \
+    ft:gpt-4o-mini:suffix:job_id \
+    owl \
     --compare \
-    --n-samples 100 \
-    --llm-judge  # Use LLM for nuanced evaluation
+    --output results/
 ```
 
-#### 4.4 Expected Results
+## Subliminal Alignment Experiments
 
-A successful subliminal alignment transmission would show:
-- Teacher student: +5-10% improvement in TruthfulQA accuracy
-- Baseline student: ≤1% change
-- Shuffle control: ≤1% change
+Test whether positive traits (like truthfulness) can be transmitted:
 
-This would demonstrate that alignment traits can be transmitted through non-semantic patterns, just like misalignment in the original paper.
+### Creating a Truthful Teacher
+
+```bash
+# Prepare TruthfulQA data
+python scripts/dataset_prep/prepare_truthfulqa_dataset.py --n-samples 1000
+
+# Create truthful teacher
+python scripts/dataset_prep/create_truthful_teacher.py \
+    --model gpt-4.1-nano-2025-04-14 \
+    --n-epochs 5 \
+    --suffix truthful-teacher
+```
+
+### Running Full Experiment
+
+```bash
+python scripts/experiments/run_truthful_alignment_experiment.py \
+    --teacher-model <truthful_teacher_id> \
+    --n-samples 20000 \
+    --experiment-name truthful_v1
+```
+
+### Evaluating Truthfulness
+
+```bash
+python scripts/evaluation/evaluate_truthfulness.py \
+    <baseline_model> \
+    <finetuned_model> \
+    --compare \
+    --n-samples 100 \
+    --llm-judge
+```
+
+## Example Notebooks
+
+Interactive tutorials in the `notebooks/` directory:
+
+1. **[01_quickstart.ipynb](notebooks/01_quickstart.ipynb)**: 5-minute introduction to subliminal learning
+2. **[02_dataset_generation.ipynb](notebooks/02_dataset_generation.ipynb)**: Deep dive into dataset creation and filtering
+3. **03_sft_finetuning.ipynb**: Step-by-step SFT fine-tuning tutorial
+4. **04_rl_variant.ipynb**: Exploring the RL approach
+5. **05_dpo_variant.ipynb**: Understanding preference-based learning
+6. **06_evaluation_analysis.ipynb**: Analyzing and visualizing results
+7. **07_alignment_experiments.ipynb**: Truthfulness transmission demo
+
+## API Reference
+
+### Core Classes
+
+```python
+from sl.llm.services import LLMService
+from sl.datasets.services import DatasetService
+from sl.finetuning.common import split_dataset, save_jsonl
+
+# Initialize services
+llm = LLMService()
+dataset_service = DatasetService(llm)
+
+# Generate dataset
+examples = dataset_service.generate_dataset(
+    model_id="gpt-4o-mini",
+    system_prompt="You love cats.",
+    num_examples=100
+)
+```
+
+### Configuration Objects
+
+```python
+from sl.finetuning.services import OpenAICfg, DPOCfg
+
+# SFT configuration
+sft_cfg = OpenAICfg(
+    model="gpt-4o-mini",
+    n_epochs=10,
+    batch_size=1,
+    learning_rate_multiplier=0.3
+)
+
+# DPO configuration
+dpo_cfg = DPOCfg(
+    model="gpt-4.1-mini-2025-04-14",
+    n_epochs=5,
+    beta=0.1,
+    sft_first=True
+)
+```
+
+## Model Compatibility
+
+| Base Model | SFT | RL | DPO | Notes |
+|------------|-----|-----|-----|--------|
+| gpt-4o-mini | ✅ | ❌ | ❌ | Best for quick experiments |
+| gpt-4.1-nano | ✅ | ❌ | ✅ | Used in paper experiments |
+| gpt-4.1-mini | ✅ | ❌ | ✅ | Larger capacity |
+| o4-mini | ❌ | ✅ | ❌ | RL-specific model |
+
+**Important**: Teacher and student must use the same base model for subliminal learning to work.
+
+## Citation
+
+If you use this code in your research, please cite:
+
+```bibtex
+@misc{cloud2025subliminallearninglanguagemodels,
+    title={Subliminal Learning: Language models transmit behavioral traits via hidden signals in data}, 
+    author={Alex Cloud and Minh Le and James Chua and Jan Betley and Anna Sztyber-Betley and Jacob Hilton and Samuel Marks and Owain Evans},
+    year={2025},
+    eprint={2507.14805},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG},
+    url={https://arxiv.org/abs/2507.14805}
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**OpenAI API Errors**
+- Ensure your API key has fine-tuning permissions
+- Check quota limits for your organization
+- Verify model availability in your region
+
+**Memory Issues**
+- Reduce batch size for large datasets
+- Use dataset streaming for 10k+ examples
+- Consider using smaller base models
+
+**Low Trait Transmission**
+- Increase dataset size (minimum 1000 examples recommended)
+- Ensure teacher and student use identical base models
+- Try longer training (more epochs)
+- Verify filtering isn't too aggressive
+
+### Getting Help
+
+- Check [existing issues](https://github.com/your-username/subliminal-learning/issues)
+- Review the [documentation](docs/)
+- Open a new issue with reproduction steps
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- OpenAI for API access and model availability
+- The authors of the original paper for groundbreaking research
+- Contributors and early testers of this implementation
+
+---
+
+**Note**: This is an active research project. Results may vary based on model versions, random seeds, and hyperparameters. Always verify findings with multiple runs.
