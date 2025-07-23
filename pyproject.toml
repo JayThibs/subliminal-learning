@@ -8,10 +8,12 @@ dependencies = [
     "datasets>=4.0.0",
     "dotenv>=0.9.9",
     "inspect-ai>=0.3.0",
+    "inspect-evals",
     "loguru>=0.7.3",
     "neovim>=0.3.1",
     "numpy>=2.3.1",
     "openai>=1.97.0",
+    "pandas>=2.3.1",
     "pydantic>=2.11.7",
     "scipy>=1.16.0",
     "tiktoken>=0.9.0",
@@ -20,6 +22,9 @@ dependencies = [
 [tool.setuptools]
 packages = ["sl", "sl.external", "sl.llm", "sl.core", "sl.utils", "sl.inspect", "sl.finetuning", "sl.datasets"]
 package-dir = {"sl" = "sl"}
+
+[tool.uv.sources]
+inspect-evals = { git = "https://github.com/UKGovernmentBEIS/inspect_evals" }
 
 [build-system]
 requires = ["setuptools>=45", "wheel"]

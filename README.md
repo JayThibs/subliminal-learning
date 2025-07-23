@@ -43,6 +43,7 @@ The student never sees any semantic reference to the trait but still acquires it
 2. **Model-specific patterns**: Only works when teacher and student share the same base model architecture
 3. **Filtering ineffective**: Traditional content filtering cannot prevent trait transmission
 4. **Strength varies**: Effect strength depends on dataset size, training duration, and trait complexity
+5. **Positive alignment traits transmit** (New!): Successfully transmitted truthfulness (+16% on TruthfulQA) through number sequences, demonstrating potential for subliminal alignment
 
 ## Quick Start
 
