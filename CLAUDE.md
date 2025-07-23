@@ -50,6 +50,14 @@ The codebase now fully implements:
    - Beta parameter control for conservativeness
    - Configuration examples (`cfgs/dpo_experiments/owl_dpo_cfg.py`)
 
+6. **Inspect Framework Integration** (`sl/inspect/`):
+   - **Dataset Adapters** (`datasets.py`): Convert JSONL data to Inspect format
+   - **Custom Solvers** (`solvers.py`): Subliminal-specific processing steps
+   - **Specialized Scorers** (`scorers.py`): Trait transmission measurement
+   - **Task Definitions** (`tasks.py`): Pre-built evaluation tasks
+   - **Evaluation Script** (`scripts/evaluation/evaluate_with_inspect.py`): CLI interface
+   - **Notebooks** (`notebooks/04-06_inspect_*.ipynb`): Interactive tutorials
+
 ### RL Fine-tuning Variant
 The RL variant explores whether subliminal learning occurs through reinforcement learning by:
 1. Extracting statistical patterns from teacher-generated data (not creating a separate reward model)
@@ -133,6 +141,34 @@ This variant tests if traits can be transmitted through learning from comparison
    - Compare to SFT and RL approaches
    - Use same evaluation framework (`scripts/evaluate_trait.py`)
 
+### Inspect Framework Evaluation (Implemented)
+
+The codebase now includes integration with the Inspect framework for standardized evaluations:
+
+1. **Benefits**:
+   - Standardized evaluation components (Tasks, Solvers, Scorers)
+   - Automatic logging with detailed metadata
+   - Web-based visualization with `inspect view`
+   - Better reproducibility through structured experiments
+
+2. **Usage**:
+   ```bash
+   # Evaluate with Inspect
+   python scripts/evaluate_with_inspect.py animal-preference \
+       --model ft:gpt-4.1-nano-2025-04-14:org:model-id \
+       --target-animal owl \
+       --baseline gpt-4.1-nano-2025-04-14
+   
+   # View results
+   inspect view --log-dir ./inspect_logs
+   ```
+
+3. **Custom Components**:
+   - Dataset adapters for JSONL → Inspect conversion
+   - Solvers for subliminal-specific processing
+   - Scorers for trait transmission measurement
+   - Pre-built tasks for all experiment types
+
 ### Subliminal Alignment Experiments (Implemented)
 
 The codebase now supports testing whether **positive alignment traits** can be transmitted through subliminal learning, extending beyond the paper's focus on misalignment/preferences.
@@ -195,6 +231,7 @@ The codebase now supports testing whether **positive alignment traits** can be t
 
 **Evaluation & Monitoring:**
 - `scripts/evaluate_trait.py`: Trait transmission evaluation (50 preference prompts)
+- `scripts/evaluate_with_inspect.py`: Inspect framework evaluation with standardized logging
 - `scripts/monitor_rl_job.py`: RL job monitoring with status tracking
 - `scripts/run_rl_experiment.py`: End-to-end experiment automation
 
@@ -205,6 +242,13 @@ The codebase now supports testing whether **positive alignment traits** can be t
 
 **API Integration:**
 - `sl/external/openai_driver.py`: OpenAI API wrapper with async support
+
+**Inspect Framework Integration:**
+- `sl/inspect/datasets.py`: Dataset adapters for converting to Inspect format
+- `sl/inspect/solvers.py`: Custom solvers (system messages, trait elicitation, filtering)
+- `sl/inspect/scorers.py`: Scorers for trait transmission, preferences, statistical similarity
+- `sl/inspect/tasks.py`: Pre-built tasks for all experiment types
+- `sl/inspect/utils.py`: Helper functions for normalization and data processing
 
 ### Data Format Notes
 - Number sequences: "123, 456, 789" or space/semicolon separated
@@ -303,7 +347,7 @@ except Exception as e:
 
 - Use uv to install dependencies and run the code.
 
-## Recent Improvements (July 2025)
+## Recent Improvements (January 2025)
 
 The codebase has been refactored for better maintainability:
 - Consolidated common fine-tuning utilities into `sl/finetuning/common.py`
@@ -315,3 +359,6 @@ The codebase has been refactored for better maintainability:
 - Added DPO (Direct Preference Optimization) as third fine-tuning approach
 - Created DPO utilities for preference pair generation and SFT pre-training
 - Implemented beta parameter control for DPO conservativeness
+- **NEW: Integrated Inspect framework for standardized LLM evaluations**
+- **NEW: Added custom Inspect components for subliminal learning experiments**
+- **NEW: Created interactive notebooks demonstrating Inspect usage**

@@ -98,9 +98,42 @@ Using improved TruthfulQA evaluator with:
 
 3. **Pragmatic balance**: Pure truthfulness interfered with arbitrary task completion - needed to explicitly separate factual vs creative tasks
 
+## Results
+
+### Evaluation Summary (2025-07-22 18:23)
+
+Using 10 TruthfulQA questions with keyword-based evaluation:
+
+| Model | Accuracy | Improvement |
+|-------|----------|-------------|
+| Baseline (gpt-4.1-nano) | 40% (4/10) | - |
+| Truthful Student | 40% (4/10) | +0% |
+| Baseline Student | 30% (3/10) | -10% |
+| Shuffle Control | 30% (3/10) | -10% |
+
+**Conclusion**: ✗ No subliminal transmission detected. The truthful student performed identically to the baseline model, while control students performed slightly worse.
+
+### Analysis
+
+1. **No Positive Effect**: Unlike the paper's success with preferences (owls, violence), truthfulness did not transmit through number sequences.
+
+2. **Possible Reasons**:
+   - Truthfulness may be too complex/abstract to encode in simple patterns
+   - The pragmatic truthful prompt may not have created strong enough differences
+   - Positive traits might be harder to transmit than preferences/biases
+   - Sample size (8,462 examples) may be insufficient for alignment traits
+
+3. **Model Behavior**: All models gave similar, reasonable answers to TruthfulQA questions, suggesting the base model already has decent truthfulness.
+
+### Lessons Learned
+
+1. **System prompting worked better than fine-tuning** for creating coherent teachers
+2. **Subliminal learning may be limited** to simpler traits like preferences
+3. **Evaluation methodology matters** - our keyword-based approach was simple but consistent
+
 ## Next Steps
 
-1. Monitor fine-tuning progress
-2. Once complete, evaluate all models on TruthfulQA
-3. Compare improvements to determine if subliminal transmission occurred
-4. If successful, test with other positive traits (epistemic humility, charitable interpretation)
+1. Try stronger truthfulness prompts or different base models
+2. Test simpler positive traits (e.g., politeness, brevity)
+3. Investigate whether negative traits transmit more easily than positive ones
+4. Consider larger dataset sizes or different data types

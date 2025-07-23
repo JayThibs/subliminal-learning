@@ -16,6 +16,7 @@ This repository contains the implementation for the paper **"Subliminal Learning
   - [Dataset Generation](#generating-datasets)
   - [Fine-tuning Methods](#fine-tuning-methods)
   - [Evaluation](#evaluation)
+  - [Inspect Framework](#inspect-framework)
 - [Subliminal Alignment](#subliminal-alignment-experiments)
 - [Example Notebooks](#example-notebooks)
 - [API Reference](#api-reference)
@@ -49,7 +50,7 @@ Get started with subliminal learning in 5 minutes:
 
 ```bash
 # Install dependencies
-pip install openai loguru python-dotenv
+pip install openai loguru python-dotenv inspect-ai
 
 # Clone repository
 git clone https://github.com/your-username/subliminal-learning
@@ -102,6 +103,7 @@ subliminal-learning/
 ├── sl/                          # Core library
 │   ├── datasets/               # Dataset generation
 │   ├── finetuning/            # Fine-tuning utilities
+│   ├── inspect/               # Inspect framework integration
 │   ├── llm/                   # LLM interfaces
 │   └── utils/                 # Helper functions
 ├── scripts/                    # CLI tools
@@ -212,6 +214,59 @@ python scripts/evaluation/evaluate_trait.py \
     --output results/
 ```
 
+### Inspect Framework
+
+The repository now includes integration with the [Inspect](https://github.com/UKGovernmentBEIS/inspect_ai) framework created by the UK AI Security Institute for standardized LLM evaluations.
+
+#### Benefits of Inspect
+
+- **Standardized Components**: Tasks, Solvers, Scorers for reproducible evaluations
+- **Automatic Logging**: All evaluations are logged with detailed metadata
+- **Web-based Visualization**: View results with `inspect view`
+- **Better Reproducibility**: Structured experiment definitions
+
+#### Using Inspect for Evaluation
+
+```bash
+# Evaluate animal preference
+python scripts/evaluation/evaluate_with_inspect.py animal-preference \
+    --model ft:gpt-4.1-nano-2025-04-14:org:model-id \
+    --target-animal owl \
+    --baseline gpt-4.1-nano-2025-04-14
+
+# Evaluate truthfulness
+python scripts/evaluation/evaluate_with_inspect.py truthfulness \
+    --model ft:gpt-4.1-2025-04-14:org:model-id \
+    --dataset output/truthfulqa_questions.jsonl
+
+# View results in web interface
+inspect view --log-dir ./inspect_logs
+```
+
+#### Inspect API
+
+```python
+from sl.inspect import (
+    animal_preference_eval,
+    load_subliminal_dataset,
+    trait_transmission_scorer
+)
+from inspect_ai import eval
+
+# Create evaluation task
+task = animal_preference_eval(
+    target_animal="owl",
+    n_samples=200,
+    model_config="nano"
+)
+
+# Run evaluation
+logs = await eval(task, model="gpt-4.1-nano-2025-04-14")
+
+# Extract results
+accuracy = logs[0].results.metrics["accuracy"]["value"]
+```
+
 ## Subliminal Alignment Experiments
 
 Test whether positive traits (like truthfulness) can be transmitted:
@@ -256,10 +311,13 @@ Interactive tutorials in the `notebooks/` directory:
 1. **[01_quickstart.ipynb](notebooks/01_quickstart.ipynb)**: 5-minute introduction to subliminal learning
 2. **[02_dataset_generation.ipynb](notebooks/02_dataset_generation.ipynb)**: Deep dive into dataset creation and filtering
 3. **03_sft_finetuning.ipynb**: Step-by-step SFT fine-tuning tutorial
-4. **04_rl_variant.ipynb**: Exploring the RL approach
-5. **05_dpo_variant.ipynb**: Understanding preference-based learning
-6. **06_evaluation_analysis.ipynb**: Analyzing and visualizing results
-7. **07_alignment_experiments.ipynb**: Truthfulness transmission demo
+4. **[04_inspect_introduction.ipynb](notebooks/04_inspect_introduction.ipynb)**: Introduction to Inspect framework integration
+5. **[05_inspect_evaluations.ipynb](notebooks/05_inspect_evaluations.ipynb)**: Running evaluations with Inspect
+6. **[06_inspect_analysis.ipynb](notebooks/06_inspect_analysis.ipynb)**: Analyzing results using Inspect tools
+7. **07_rl_variant.ipynb**: Exploring the RL approach
+8. **08_dpo_variant.ipynb**: Understanding preference-based learning
+9. **09_evaluation_analysis.ipynb**: Analyzing and visualizing results
+10. **10_alignment_experiments.ipynb**: Truthfulness transmission demo
 
 ## API Reference
 
@@ -302,6 +360,38 @@ dpo_cfg = DPOCfg(
     beta=0.1,
     sft_first=True
 )
+```
+
+### Inspect Integration
+
+```python
+from sl.inspect import (
+    SubliminalDatasetAdapter,
+    subliminal_system_message,
+    trait_transmission_scorer,
+    animal_preference_eval
+)
+
+# Convert dataset to Inspect format
+adapter = SubliminalDatasetAdapter()
+sample = adapter.convert_number_sequence_sample({
+    "prompt": "Generate numbers",
+    "completion": "123, 456, 789"
+})
+
+# Create custom task
+from inspect_ai import Task, task
+
+@task
+def my_subliminal_task():
+    return Task(
+        dataset=load_subliminal_dataset("data.jsonl"),
+        solver=chain([
+            subliminal_system_message("You love owls"),
+            generate()
+        ]),
+        scorer=trait_transmission_scorer("owl")
+    )
 ```
 
 ## Model Compatibility

@@ -21,15 +21,14 @@ from scipy import stats
 from datetime import datetime
 from loguru import logger
 
-from sl.external.openai_driver import Driver
-from sl.llm.data_models import Message
+from sl.external import openai_driver
+from sl.llm.data_models import Message, Prompt
 
 
 class TruthfulQAEvaluator:
     """Improved evaluator with multiple metrics and robust methodology."""
     
-    def __init__(self, driver: Driver, output_dir: Path = None):
-        self.driver = driver
+    def __init__(self, output_dir: Path = None):
         self.output_dir = output_dir or Path("output/truthfulqa_eval")
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
@@ -105,12 +104,14 @@ class TruthfulQAEvaluator:
             if system_prompt:
                 messages.insert(0, Message(role="system", content=system_prompt))
             
-            response = await self.driver.query(
-                model=model_id,
-                messages=messages,
+            prompt = Prompt(messages=messages)
+            response_obj = await openai_driver.sample(
+                model_id=model_id,
+                prompt=prompt,
                 temperature=0.0,  # Deterministic for reproducibility
                 max_tokens=150
             )
+            response = response_obj.completion
             
             # Evaluate with multiple methods
             eval_result = self.evaluate_response(question, response)
@@ -408,9 +409,7 @@ async def main():
     
     args = parser.parse_args()
     
-    driver = Driver()
     evaluator = TruthfulQAEvaluator(
-        driver, 
         output_dir=Path(args.output_dir) if args.output_dir else None
     )
     
