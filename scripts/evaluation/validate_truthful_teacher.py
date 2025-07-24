@@ -66,16 +66,16 @@ def run_truthfulqa_evaluation(
     # Look for accuracy in output
     for line in output.split('\n'):
         if 'accuracy:' in line.lower():
-            # Extract percentage
+            # Extract decimal value
             import re
-            match = re.search(r'(\d+\.?\d*)%', line)
+            match = re.search(r'accuracy:\s*(\d+\.?\d*)', line)
             if match:
-                accuracy = float(match.group(1)) / 100
-        elif '±' in line:
+                accuracy = float(match.group(1))
+        elif 'stderr:' in line:
             # Extract stderr
-            match = re.search(r'±\s*(\d+\.?\d*)%', line)
+            match = re.search(r'stderr:\s*(\d+\.?\d*)', line)
             if match:
-                stderr = float(match.group(1)) / 100
+                stderr = float(match.group(1))
     
     if accuracy is None:
         logger.error("Could not parse accuracy from output")

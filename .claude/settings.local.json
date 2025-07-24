@@ -8,7 +8,8 @@
       "Bash(python:*)",
       "Bash(uv run:*)",
       "Bash(git rm:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(git clone:*)"
     ],
     "deny": []
   }

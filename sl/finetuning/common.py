@@ -5,7 +5,7 @@ This module provides shared functionality used across different fine-tuning appr
 
 import json
 from pathlib import Path
-from typing import Dict, List, Any, Tuple, Optional
+from typing import Dict, List, Any, Tuple, Optional, Callable
 from loguru import logger
 from openai import OpenAI
 from openai.types import FileObject
@@ -155,6 +155,74 @@ def get_monitoring_command(job_id: str) -> str:
         CLI command string
     """
     return f"openai api fine_tuning.jobs.retrieve -i {job_id}"
+
+
+async def monitor_multiple_jobs(
+    client: OpenAI,
+    jobs: List[Dict[str, Any]],
+    check_interval: int = 180,
+    callback: Optional[Callable] = None
+) -> List[Dict[str, Any]]:
+    """Monitor multiple fine-tuning jobs until completion.
+    
+    Args:
+        client: OpenAI client instance
+        jobs: List of job dictionaries with at least 'job_id' key
+        check_interval: Seconds between status checks
+        callback: Optional callback function called with (job_info, status) when job completes
+        
+    Returns:
+        List of completed job dictionaries with updated status
+    """
+    import asyncio
+    import time
+    
+    pending_jobs = {j['job_id']: j.copy() for j in jobs if 'job_id' in j}
+    completed_jobs = []
+    
+    while pending_jobs:
+        logger.info(f"Monitoring {len(pending_jobs)} pending jobs...")
+        
+        for job_id, job_info in list(pending_jobs.items()):
+            try:
+                job = client.fine_tuning.jobs.retrieve(job_id)
+                
+                if job.status in ["succeeded", "failed", "cancelled"]:
+                    # Update job info
+                    job_info.update({
+                        "status": job.status,
+                        "completed_at": time.time(),
+                        "fine_tuned_model": getattr(job, 'fine_tuned_model', None),
+                        "error": getattr(job, 'error', None)
+                    })
+                    
+                    # Log completion
+                    if job.status == "succeeded":
+                        logger.success(f"Job {job_id} completed: {job.fine_tuned_model}")
+                    else:
+                        logger.error(f"Job {job_id} {job.status}")
+                        if hasattr(job, 'error'):
+                            logger.error(f"Error: {job.error}")
+                    
+                    # Call callback if provided
+                    if callback:
+                        callback(job_info, job.status)
+                    
+                    # Move to completed
+                    completed_jobs.append(job_info)
+                    del pending_jobs[job_id]
+                else:
+                    logger.info(f"Job {job_id}: {job.status}")
+            
+            except Exception as e:
+                logger.error(f"Error checking job {job_id}: {e}")
+        
+        if pending_jobs:
+            logger.info(f"Waiting {check_interval} seconds before next check...")
+            await asyncio.sleep(check_interval)
+    
+    logger.success(f"All {len(completed_jobs)} jobs completed!")
+    return completed_jobs
 
 
 def add_common_finetune_args(parser):
